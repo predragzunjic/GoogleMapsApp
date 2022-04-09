@@ -1,15 +1,18 @@
 package com.example.googlemapsapp
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-
+import android.view.View.INVISIBLE
+import android.view.View.VISIBLE
+import androidx.appcompat.app.AppCompatActivity
+import com.example.googlemapsapp.databinding.ActivityMapsBinding
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
-import com.example.googlemapsapp.databinding.ActivityMapsBinding
+
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -41,8 +44,48 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap = googleMap
 
         // Add a marker in Sydney and move the camera
-        val sydney = LatLng(-34.0, 151.0)
-        mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
+        val podgorica = LatLng(42.43, 19.25)
+
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(podgorica, 14.0F))
+
+        var origin: Marker?
+        var destination: Marker?
+        var counter = 0
+
+        binding.btnMakeRoute.setOnClickListener{
+            binding.btnMakeRoute.visibility = INVISIBLE
+
+            mMap.setOnMapClickListener { latLng -> // Creating a marker
+                if(counter == 0)
+                    mMap.clear()
+
+                val markerOptions = MarkerOptions()
+
+                // Setting the position for the marker
+                markerOptions.position(latLng)
+
+                // Setting the title for the marker.
+                // This will be displayed on taping the marker
+                markerOptions.title(latLng.latitude.toString() + " : " + latLng.longitude)
+
+                // Clears the previously touched position
+                //googleMap.clear()
+
+                // Animating to the touched position
+                mMap.animateCamera(CameraUpdateFactory.newLatLng(latLng))
+
+                // Placing a marker on the touched position
+                counter++
+                if(counter == 1)
+                    origin = googleMap.addMarker(markerOptions)
+
+                else if(counter == 2){
+                    destination = googleMap.addMarker(markerOptions)
+                    counter = 0
+                    binding.btnMakeRoute.visibility = VISIBLE
+                }
+            }
+        }
+
     }
 }
