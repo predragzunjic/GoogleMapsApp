@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">GoogleMapsApp</string>
     <string name="title_activity_maps">MapsActivity</string>
+    <string name="btn_make_route">Make a route</string>
 </resources>
