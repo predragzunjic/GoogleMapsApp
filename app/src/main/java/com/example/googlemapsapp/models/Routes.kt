@@ -1,5 +1,8 @@
 package com.example.googlemapsapp.models
 
-class Routes(
-    var legs: List<Legs>? = ArrayList()
+data class Routes(
+    var legs: List<Legs>?,
+
+    val overview_polyline: OverviewPolyline
+
 )

@@ -1,7 +1,7 @@
 package com.example.googlemapsapp.models
 
-class Location (
-    var lat: String?,
+data class Location(
+    var lat: Double?,
 
-    var lng: String?
-    )
+    var lng: Double?
+)

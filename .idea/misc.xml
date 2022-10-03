@@ -4,6 +4,8 @@
     <option name="filePathToZoomLevelMap">
       <map>
         <entry key="..\:/Users/Dell/AndroidStudioProjects/GoogleMapsApp/app/src/main/res/layout/activity_maps.xml" value="0.2210144927536232" />
+        <entry key="..\:/Users/Dell/AndroidStudioProjects/GoogleMapsApp/app/src/main/res/layout/distance_directions.xml" value="0.1125" />
+        <entry key="..\:/Users/Dell/AndroidStudioProjects/GoogleMapsApp/app/src/main/res/layout/loading_route.xml" value="0.121875" />
       </map>
     </option>
   </component>

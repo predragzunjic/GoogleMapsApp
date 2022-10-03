@@ -1,18 +1,14 @@
 package com.example.googlemapsapp
 
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
-import android.view.View
-import android.view.View.INVISIBLE
-import android.view.View.VISIBLE
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.googlemapsapp.databinding.ActivityMapsBinding
-import com.example.googlemapsapp.models.Steps
+import com.example.googlemapsapp.databinding.LoadingRouteBinding
+import com.example.googlemapsapp.models.Legs
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -21,6 +17,8 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.maps.android.PolyUtil
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collect
 
@@ -29,9 +27,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
+    private lateinit var binding2: LoadingRouteBinding
     private val mapsViewModel: MapsViewModel by viewModels()
     private lateinit var listOfMarkers: MutableList<Marker?>
-    private lateinit var KEY_API: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,12 +37,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         binding = ActivityMapsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        listOfMarkers = mutableListOf<Marker?>()
-        val ai: ApplicationInfo = applicationContext.packageManager
-            .getApplicationInfo(applicationContext.packageName, PackageManager.GET_META_DATA)
-        val value = ai.metaData["keyValue"]
+        binding2 = LoadingRouteBinding.inflate(layoutInflater)
 
-        KEY_API = value.toString()
+        changeBottomSheetState(BottomSheetBehavior.STATE_HIDDEN)
+
+        listOfMarkers = mutableListOf()
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
@@ -68,24 +65,31 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(podgorica, 14.0F))
 
-        initView(googleMap)
-
-
+        initView()
     }
 
-    private fun initView(googleMap: GoogleMap){
+    private fun initView(){
         var counter = 0
-
-        var origin: Marker?
-        var destination: Marker?
+        var key = 0
 
         binding.btnMakeRoute.setOnClickListener{
-            binding.btnMakeRoute.visibility = INVISIBLE
+
+            if(key == 0 && binding.btnMakeRoute.text == getString(R.string.btn_make_route)) {
+                binding.btnMakeRoute.text = getString(R.string.btn_make_route_cancel)
+                key = 1
+            }
+
+            else if(key == 1 && binding.btnMakeRoute.text == getString(R.string.btn_make_route_cancel)){
+                binding.btnMakeRoute.text = getString(R.string.btn_make_route)
+                mMap.clear()
+                listOfMarkers.clear()
+                changeBottomSheetState(BottomSheetBehavior.STATE_HIDDEN)
+
+                key = 0
+                counter = 0
+            }
 
             mMap.setOnMapClickListener { latLng -> // Creating a marker
-                if(counter == 0)
-                    mMap.clear()
-
                 val markerOptions = MarkerOptions()
 
                 // Setting the position for the marker
@@ -93,7 +97,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 // Setting the title for the marker.
                 // This will be displayed on taping the marker
-                markerOptions.title(latLng.latitude.toString() + " : " + latLng.longitude)
+                markerOptions.title(latLng.latitude.toString() + " : " + latLng.longitude.toString())
 
                 // Clears the previously touched position
                 //googleMap.clear()
@@ -103,38 +107,41 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
                 // Placing a marker on the touched position
                 counter++
-                if(counter == 1)
-                    listOfMarkers.add(googleMap.addMarker(markerOptions))
+                listOfMarkers.add(mMap.addMarker(markerOptions))
 
-                else if(counter == 2){
-                    listOfMarkers.add(googleMap.addMarker(markerOptions))
+                if(counter == 2){
                     counter = 0
                     getDirections(listOfMarkers)
-                    listOfMarkers.clear()
-                    binding.btnMakeRoute.visibility = VISIBLE
                 }
             }
         }
     }
 
     private fun getDirections(listOfMarkers: MutableList<Marker?>){
-        mapsViewModel.getDirections("DRIVING", true, KEY_API, "${listOfMarkers[0]?.title?.substringBefore(':')}," +
-                "${listOfMarkers[0]?.title?.substringBefore(':')}", "${listOfMarkers[1]?.title?.substringBefore(':')},"
-                + "${listOfMarkers[1]?.title?.substringBefore(':')}")
+        mapsViewModel.getDirections(false, "WALKING", true, BuildConfig.API_KEY,
+                "${listOfMarkers[0]?.title?.substringBefore(':')}," +
+                        "${listOfMarkers[0]?.title?.substringAfter(':')}",
+                "${listOfMarkers[1]?.title?.substringBefore(':')},"
+                        + "${listOfMarkers[1]?.title?.substringAfter(':')}")
+
 
         lifecycleScope.launchWhenStarted {
             mapsViewModel.directions.collect{event ->
                 when(event){
                     is MapsViewModel.DirectionsEvent.Success ->{
-                        createPolyline(event.resultText)
+                        setContentView(binding.root)
+                        createPolyline(event.resultText?.get(0)?.overview_polyline?.points.toString())
+
+                        changeBottomSheetState(BottomSheetBehavior.STATE_EXPANDED)
+                        showBottomSheet(event.resultText?.get(0)?.legs)
                     }
 
                     is MapsViewModel.DirectionsEvent.Failure ->{
-
+                        Toast.makeText(this@MapsActivity, event.errorText, Toast.LENGTH_SHORT).show()
                     }
 
                     is MapsViewModel.DirectionsEvent.Loading ->{
-
+                        setContentView(binding2.root)
                     }
                     else -> Unit
                 }
@@ -142,20 +149,30 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    private fun createPolyline(steps: List<Steps>?) {
-        if (!steps.isNullOrEmpty()) {
-            for (it in steps) {
-                mMap.addPolyline(
-                    PolylineOptions()
-                        .add(LatLng(it.start_location?.latitude!!.toDouble(), it.start_location?.longitude!!.toDouble())
-                            , LatLng(it.end_location?.latitude!!.toDouble(), it.end_location?.longitude!!.toDouble()))
-                        .width(5f)
-                        .color(Color.RED)
-                )
+    private fun createPolyline(result: String?) {
+        if (!result.isNullOrEmpty()) {
+            val list = PolyUtil.decode(result)
+            val polylineOptions = PolylineOptions().width(5f).color(Color.RED).geodesic(true)
+            for (it in list) {
+                polylineOptions.add(it)
             }
+            mMap.addPolyline(polylineOptions)
         }else{
             Toast.makeText(this@MapsActivity, "There is a problem with creating an interface",
                 Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun showBottomSheet(legs: List<Legs>?) {
+        BottomSheetBehavior.from(binding.frameLayoutSheet).apply {
+            this.state = BottomSheetBehavior.STATE_COLLAPSED
+            binding.loadingRoute.tvTimeDistance.text = legs?.get(0)?.distance?.text + " " + legs?.get(0)?.duration?.text
+        }
+    }
+
+    private fun changeBottomSheetState(state: Int) {
+        BottomSheetBehavior.from(binding.frameLayoutSheet).apply {
+            this.state = state
         }
     }
 }
